@@ -13,7 +13,6 @@ import copy
 import hashlib
 import logging
 import os
-import random
 import time
 
 import httpx
@@ -25,16 +24,18 @@ logger = logging.getLogger(__name__)
 
 # API接口的URL
 LIKIE_URL = "http://c.tieba.baidu.com/c/f/forum/like"  # 获取用户关注贴吧的接口
-TBS_URL = "http://tieba.baidu.com/dc/common/tbs"       # 获取tbs值的接口
-SIGN_URL = "http://c.tieba.baidu.com/c/c/forum/sign"   # 贴吧签到接口
+TBS_URL = "http://tieba.baidu.com/dc/common/tbs"  # 获取tbs值的接口
+SIGN_URL = "http://c.tieba.baidu.com/c/c/forum/sign"  # 贴吧签到接口
 
 ENV = os.environ  # 获取系统环境变量
 
 # 请求头部
 HEADERS = {
     "Host": "tieba.baidu.com",
-    "User-Agent": "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 \
-    (KHTML, like Gecko) Chrome/39.0.2171.71 Safari/537.36",
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/39.0.2171.71 Safari/537.36"
+    ),
 }
 
 # 签到数据的基本信息
@@ -64,6 +65,7 @@ KW = "kw"
 
 client = httpx.AsyncClient()  # 创建一个异步HTTP客户端实例
 
+
 def get_tbs(bduss):
     """获取tbs值的函数"""
     logger.info("获取tbs开始")
@@ -78,6 +80,7 @@ def get_tbs(bduss):
         tbs = httpx.get(url=TBS_URL, headers=headers, timeout=5).json()[TBS]  # 再次请求获取tbs值
     logger.info("获取tbs结束")
     return tbs  # 返回tbs值
+
 
 def get_favorite(bduss):
     """获取用户关注的贴吧列表"""
@@ -105,7 +108,7 @@ def get_favorite(bduss):
 
         if "forum_list" not in res or "has_more" not in res or res["has_more"] != "1":
             break  # 如果没有更多数据，退出循环
-        
+
         if "non-gconforum" in res["forum_list"]:
             returnData["forum_list"]["non-gconforum"].extend(res["forum_list"]["non-gconforum"])
         if "gconforum" in res["forum_list"]:
@@ -125,9 +128,10 @@ def get_favorite(bduss):
                         t.append(j)
             else:
                 t.append(i)
-                
+
     logger.info("获取关注的贴吧结束")
     return t  # 返回整理后的贴吧列表
+
 
 def encodeData(data):
     """对请求数据进行加密处理"""
@@ -139,6 +143,7 @@ def encodeData(data):
     data.update({SIGN: str(sign)})  # 将签名添加到数据中
     return data
 
+
 async def client_sign(bduss, tbs, fid, kw):
     """执行签到操作"""
     logger.info("开始签到贴吧：" + kw)
@@ -149,6 +154,7 @@ async def client_sign(bduss, tbs, fid, kw):
     data = encodeData(data)  # 对请求数据进行加密处理
     res = await client.post(url=SIGN_URL, data=data, timeout=5)  # 发送签到请求
     return res.json()  # 返回响应的JSON数据
+
 
 def main():
     """主函数"""
@@ -165,16 +171,16 @@ def main():
         logger.info("开始签到第" + str(n) + "个用户" + i)  # 记录当前正在签到的用户
         tbs = get_tbs(i)  # 获取当前用户的tbs
         favorites = get_favorite(i)  # 获取当前用户关注的贴吧
-        
+
         # 记录关注的贴吧总数
         total_favorites = len(favorites)
         logger.info(f"用户 {i} 关注的贴吧总数: {total_favorites}")
-        
+
         success_count = 0  # 成功签到计数器
         for j in favorites:
             await asyncio.sleep(10)  # 每签到一个贴吧后休息10秒
             result = await client_sign(i, tbs, j["id"], j["name"])  # 执行签到操作
-            
+
             # 检查签到是否成功
             if result.get("error_code") == "0":  # 根据实际返回结果判断是否签到成功
                 success_count += 1
@@ -186,6 +192,7 @@ def main():
 
     logger.info("所有用户签到结束")  # 记录所有用户签到完成
     loop.close()  # 关闭事件循环
+
 
 if __name__ == "__main__":
     main()  # 调用主函数，开始执行脚本
